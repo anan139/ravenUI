@@ -1,9 +1,8 @@
-import adapter from '@sveltejs/adapter-node';
+import adapter from '@sveltejs/adapter-vercel';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
 	kit: {
-		// Use a concrete production adapter so deployment does not depend on auto-detection.
 		adapter: adapter()
 	}
 };
