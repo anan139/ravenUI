@@ -1,0 +1,63 @@
+@import 'tailwindcss';
+@plugin "daisyui";
+
+:root[data-theme='raven'] {
+	color-scheme: dark;
+	--color-base-100: #090d16;
+	--color-base-200: #0f1524;
+	--color-base-300: #1a2238;
+	--color-base-content: #e6ebff;
+	--color-primary: #90a3ff;
+	--color-primary-content: #080b15;
+	--color-secondary: #2a3559;
+	--color-secondary-content: #d7defe;
+	--color-accent: #b3c0ff;
+	--color-accent-content: #101a38;
+	--color-neutral: #111a31;
+	--color-neutral-content: #dbe6ff;
+	--color-info: #71b6ff;
+	--color-success: #55d6a9;
+	--color-warning: #f7be62;
+	--color-error: #ff7f91;
+	--b1: 225 36% 7%;
+	--b2: 225 32% 10%;
+	--b3: 224 28% 16%;
+	--bc: 224 100% 95%;
+	--p: 229 100% 78%;
+	--pc: 224 41% 8%;
+	--s: 227 36% 26%;
+	--sc: 224 93% 92%;
+	--a: 228 100% 85%;
+	--ac: 222 57% 14%;
+	--n: 223 48% 13%;
+	--nc: 224 100% 92%;
+}
+
+html[data-theme='raven'] .cl-card {
+	background: #0d1220;
+	border: 1px solid #27365f;
+	box-shadow: none;
+}
+
+html[data-theme='raven'] .cl-headerTitle,
+html[data-theme='raven'] .cl-headerSubtitle,
+html[data-theme='raven'] .cl-formFieldLabel,
+html[data-theme='raven'] .cl-formResendCodeLink,
+html[data-theme='raven'] .cl-footerActionText,
+html[data-theme='raven'] .cl-identityPreviewText,
+html[data-theme='raven'] .cl-identityPreviewEditButton {
+	color: #e6ebff;
+}
+
+html[data-theme='raven'] .cl-formFieldInput,
+html[data-theme='raven'] .cl-otpCodeFieldInput {
+	background: #121a2d;
+	border-color: #27365f;
+	color: #e6ebff;
+}
+
+html[data-theme='raven'] .cl-socialButtonsBlockButton {
+	background: #121a2d;
+	border-color: #27365f;
+	color: #e6ebff;
+}
