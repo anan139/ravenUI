@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { getClerkInstance, resolveClientSession, type ClientSessionUser } from '$lib/client/auth';
 
 	type Theme = 'raven' | 'light';
@@ -8,6 +8,8 @@
 	type AuthView = 'sign-in' | 'sign-up';
 	const APP_NAME = 'Raven';
 	const RAVEN_ICON_PATH = '/raven/logo-cutout.png';
+	const COMPOSER_MIN_HEIGHT = 44;
+	const COMPOSER_MAX_HEIGHT = 220;
 	const THINKING_HINTS = [
 		'Thinking...',
 		'Cooking up a reply...',
@@ -52,8 +54,10 @@
 	let mobileSidebarOpen = false;
 
 	let prompt = '';
+	let reasoningEnabled = false;
 	let selectedFiles: File[] = [];
 	let fileInput: HTMLInputElement | null = null;
+	let composerTextarea: HTMLTextAreaElement | null = null;
 
 	let session: SessionData | null = null;
 	let clerkSignedIn = false;
@@ -89,6 +93,24 @@
 		if (!session && !clerkSignedIn && authReady) {
 			void mountAuthView();
 		}
+	}
+
+	function toggleReasoning() {
+		reasoningEnabled = !reasoningEnabled;
+		localStorage.setItem('raven-reasoning-enabled', reasoningEnabled ? 'true' : 'false');
+	}
+
+	async function syncComposerHeight() {
+		await tick();
+		if (!composerTextarea) {
+			return;
+		}
+
+		composerTextarea.style.height = '0px';
+		const scrollHeight = composerTextarea.scrollHeight;
+		const nextHeight = Math.min(Math.max(scrollHeight, COMPOSER_MIN_HEIGHT), COMPOSER_MAX_HEIGHT);
+		composerTextarea.style.height = `${nextHeight}px`;
+		composerTextarea.style.overflowY = scrollHeight > COMPOSER_MAX_HEIGHT ? 'auto' : 'hidden';
 	}
 
 	function openSidebar() {
@@ -141,6 +163,7 @@
 		prompt = '';
 		errorMessage = '';
 		clearComposerFiles();
+		void syncComposerHeight();
 	}
 
 	function clearSessionState() {
@@ -686,6 +709,7 @@
 		messages = [...messages, { role: 'user', content: userText, attachments: attachmentNames }];
 
 		prompt = '';
+		void syncComposerHeight();
 		clearComposerFiles();
 		errorMessage = '';
 		thinkingHint = pickThinkingHint();
@@ -695,7 +719,8 @@
 			const bodyPayload: Record<string, unknown> = {
 				message: userText,
 				attachments: attachmentNames,
-				threadId: currentThreadId
+				threadId: currentThreadId,
+				reasoningEnabled
 			};
 			if (session.isAdmin) {
 				bodyPayload.provider = provider;
@@ -764,6 +789,10 @@
 			event.preventDefault();
 			void sendMessage();
 		}
+	}
+
+	function handleComposerInput() {
+		void syncComposerHeight();
 	}
 
 	function getDisplayName(
@@ -851,6 +880,8 @@
 		if (savedProvider === 'koboldcpp' || savedProvider === 'openrouter') {
 			provider = savedProvider;
 		}
+		reasoningEnabled = localStorage.getItem('raven-reasoning-enabled') === 'true';
+		void syncComposerHeight();
 
 		const query = window.matchMedia('(max-width: 1023px)');
 		const syncViewportState = (matches: boolean) => {
@@ -905,22 +936,32 @@
 	$: displayName = getDisplayName(session, clerkProfileName, clerkProfileEmail);
 	$: greetingFirstName = getFirstName(displayName);
 	$: accountInitials = getInitials(displayName);
+	$: reasoningWillApply = session?.isAdmin ? provider === 'openrouter' : true;
 </script>
 
-<div class="min-h-screen bg-base-100 text-base-content">
+<div class="h-[100dvh] overflow-hidden bg-base-100 text-base-content">
 	{#if !authReady}
-		<div class="flex min-h-screen items-center justify-center">
+		<div class="flex h-full items-center justify-center">
 			<span class="loading loading-spinner loading-lg"></span>
 		</div>
 	{:else if !session}
-		<div class="relative flex min-h-screen items-center justify-center px-4 py-8 sm:px-6">
+		<div class="relative flex h-full items-center justify-center overflow-y-auto px-4 py-8 sm:px-6">
 			<div class="absolute right-4 top-4">
-				<button type="button" class="btn btn-ghost btn-sm" on:click={toggleTheme}>
-					{theme === 'raven' ? 'Light mode' : 'Raven mode'}
+				<button type="button" class="btn btn-ghost btn-sm btn-square" on:click={toggleTheme} aria-label="Toggle theme">
+					{#if theme === 'raven'}
+						<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2">
+							<circle cx="12" cy="12" r="4"></circle>
+							<path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+						</svg>
+					{:else}
+						<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2">
+							<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+						</svg>
+					{/if}
 				</button>
 			</div>
 
-			<div class="card w-full max-w-md border border-base-300/60 bg-base-200/70 shadow-xl">
+			<div class="card w-full max-w-md max-h-[calc(100dvh-4rem)] overflow-y-auto border border-base-300/60 bg-base-200/70 shadow-xl">
 				<div class="card-body gap-4">
 					<div class="flex items-center gap-2">
 						<div class="h-8 w-8 shrink-0">
@@ -977,7 +1018,7 @@
 			</div>
 		</div>
 	{:else}
-		<div class="relative flex h-[100dvh] overflow-hidden bg-base-100 text-base-content">
+		<div class="relative flex h-full overflow-hidden bg-base-100 text-base-content">
 			{#if isMobileView && mobileSidebarOpen}
 				<button
 					type="button"
@@ -1191,10 +1232,14 @@
 
 					<div class="rounded-3xl border border-base-300/70 bg-base-200/40 p-3 shadow-xl shadow-base-content/5 sm:p-4">
 						<textarea
-							class="textarea textarea-ghost h-24 w-full resize-none border-0 bg-transparent p-2 text-sm leading-relaxed outline-none hover:bg-transparent focus:bg-transparent focus:outline-none sm:text-base"
+							class="textarea textarea-ghost min-h-0 w-full resize-none overflow-y-hidden border-0 bg-transparent px-2 py-2 text-sm leading-6 outline-none hover:bg-transparent focus:bg-transparent focus:outline-none sm:text-base"
 							bind:value={prompt}
+							bind:this={composerTextarea}
+							rows="1"
+							style="height: 44px;"
 							placeholder="Type your message here"
 							disabled={isSending}
+							on:input={handleComposerInput}
 							on:keydown={handleComposerKeydown}
 						></textarea>
 
@@ -1218,6 +1263,32 @@
 									>
 										<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2">
 											<path d="M21.44 11.05l-8.49 8.49a6 6 0 11-8.49-8.49l8.5-8.49a4 4 0 015.66 5.66L10 16.88a2 2 0 11-2.83-2.83l7.78-7.78" />
+										</svg>
+									</button>
+								</div>
+								<div
+									class="tooltip tooltip-top"
+									data-tip={
+										reasoningWillApply
+											? reasoningEnabled
+												? 'Reasoning enabled'
+												: 'Enable reasoning'
+											: 'Reasoning requires OpenRouter'
+									}
+								>
+									<button
+										type="button"
+										class={`btn btn-ghost btn-sm btn-circle ${
+											reasoningEnabled ? 'bg-primary/15 text-primary' : ''
+										} ${!reasoningWillApply ? 'opacity-60' : ''}`}
+										on:click={toggleReasoning}
+										aria-label="Toggle reasoning"
+										disabled={isSending}
+									>
+										<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2">
+											<path d="M9.5 4.5a3 3 0 0 0-3 3v.5a2.5 2.5 0 0 0-2 2.45 2.5 2.5 0 0 0 1.5 2.3v1.75a3 3 0 0 0 3 3"></path>
+											<path d="M14.5 4.5a3 3 0 0 1 3 3v.5a2.5 2.5 0 0 1 2 2.45 2.5 2.5 0 0 1-1.5 2.3v1.75a3 3 0 0 1-3 3"></path>
+											<path d="M12 7v10M9.5 10.5h1.5M13 10.5h1.5M9.5 14h1.5M13 14h1.5"></path>
 										</svg>
 									</button>
 								</div>

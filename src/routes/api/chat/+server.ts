@@ -18,6 +18,7 @@ interface ChatRequestBody {
 	provider?: ChatProvider;
 	attachments?: string[];
 	threadId?: string;
+	reasoningEnabled?: boolean;
 }
 
 const allowedProviders = new Set<ChatProvider>(['koboldcpp', 'openrouter']);
@@ -86,6 +87,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	const attachments = normalizeAttachments(body.attachments);
+	const reasoningEnabled = body.reasoningEnabled === true;
 	const isAdmin = isAdminUser(user);
 	const requestedProvider =
 		isAdmin && body.provider && allowedProviders.has(body.provider) ? body.provider : undefined;
@@ -115,7 +117,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		const persistedMessages = await listMessagesForThread(user.id, thread.id);
 		const modelMessages = toModelMessages(persistedMessages);
-		const completion = await completeChat(modelMessages, requestedProvider);
+		const completion = await completeChat(modelMessages, requestedProvider, reasoningEnabled);
 
 		await addMessageToThread(user.id, thread.id, 'assistant', completion.reply, []);
 		await touchThread(thread.id);

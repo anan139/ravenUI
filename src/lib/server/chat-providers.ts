@@ -187,7 +187,7 @@ function sanitizeMessages(messages: ChatCompletionMessage[]): ChatCompletionMess
 	return [{ role: 'system', content: getSystemPrompt() }, ...baseMessages];
 }
 
-async function callOpenRouter(messages: ChatCompletionMessage[]): Promise<string> {
+async function callOpenRouter(messages: ChatCompletionMessage[], reasoningEnabled: boolean): Promise<string> {
 	const apiKey = env.OPENROUTER_API_KEY;
 	if (!apiKey) {
 		throw new Error('Missing OPENROUTER_API_KEY.');
@@ -208,6 +208,14 @@ async function callOpenRouter(messages: ChatCompletionMessage[]): Promise<string
 
 		let response: Response;
 		try {
+			const requestBody: Record<string, unknown> = {
+				model: modelId,
+				messages: sanitizeMessages(messages)
+			};
+			if (reasoningEnabled) {
+				requestBody.reasoning = { enabled: true };
+			}
+
 			response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
 				method: 'POST',
 				signal: controller.signal,
@@ -217,10 +225,7 @@ async function callOpenRouter(messages: ChatCompletionMessage[]): Promise<string
 					'HTTP-Referer': siteUrl,
 					'X-Title': appName
 				},
-				body: JSON.stringify({
-					model: modelId,
-					messages: sanitizeMessages(messages)
-				})
+				body: JSON.stringify(requestBody)
 			});
 		} catch (error) {
 			if (error instanceof Error && error.name === 'AbortError') {
@@ -301,7 +306,11 @@ async function callKoboldCpp(messages: ChatCompletionMessage[]): Promise<string>
 	return reply;
 }
 
-export async function completeChat(messages: ChatCompletionMessage[], requestedProvider?: ChatProvider): Promise<ProviderResult> {
+export async function completeChat(
+	messages: ChatCompletionMessage[],
+	requestedProvider?: ChatProvider,
+	reasoningEnabled = false
+): Promise<ProviderResult> {
 	const defaultProvider = normalizeProvider(env.LLM_PROVIDER);
 	const allowProviderOverride = env.ALLOW_PROVIDER_OVERRIDE === 'true';
 	const provider = allowProviderOverride && requestedProvider ? requestedProvider : defaultProvider;
@@ -309,7 +318,7 @@ export async function completeChat(messages: ChatCompletionMessage[], requestedP
 	if (provider === 'openrouter') {
 		return {
 			provider,
-			reply: await callOpenRouter(messages)
+			reply: await callOpenRouter(messages, reasoningEnabled)
 		};
 	}
 
