@@ -16,7 +16,7 @@ interface AdminUserSummary {
 	lastSignInAt: string | null;
 }
 
-const allowedRoles = new Set<UserRole>(['base', 'vip', 'dev']);
+const allowedRoles = new Set<UserRole>(['base', 'vip']);
 let clerkClient: ReturnType<typeof createClerkClient> | null = null;
 
 function normalizeText(value: string | null | undefined): string | null {
@@ -249,7 +249,7 @@ export const PATCH: RequestHandler = async ({ request }) => {
 	}
 
 	if (!body.role || !allowedRoles.has(body.role)) {
-		return json({ error: 'Invalid role.' }, { status: 400 });
+		return json({ error: 'Invalid role. Only base and vip can be assigned from admin panel.' }, { status: 400 });
 	}
 
 	try {

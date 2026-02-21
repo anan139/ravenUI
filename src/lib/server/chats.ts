@@ -278,3 +278,75 @@ export async function touchThread(threadId: string): Promise<void> {
 		throw new Error(`Failed to update chat timestamp (${response.status}): ${details}`);
 	}
 }
+
+export async function renameThreadForUser(
+	userId: string,
+	threadId: string,
+	title: string
+): Promise<ChatThreadSummary | null> {
+	if (!isUuid(threadId)) {
+		return null;
+	}
+
+	const response = await restRequest(`/rest/v1/chat_threads?id=eq.${threadId}&user_id=eq.${userId}`, {
+		method: 'PATCH',
+		headers: {
+			Prefer: 'return=representation'
+		},
+		body: JSON.stringify({
+			title: normalizeThreadTitle(title),
+			updated_at: new Date().toISOString()
+		})
+	});
+
+	if (!response.ok) {
+		const details = await response.text();
+		throw new Error(`Failed to rename chat (${response.status}): ${details}`);
+	}
+
+	const payload = (await response.json()) as unknown;
+	if (!Array.isArray(payload) || payload.length === 0) {
+		return null;
+	}
+
+	return parseThreadRow(payload[0]);
+}
+
+export async function deleteThreadForUser(userId: string, threadId: string): Promise<boolean> {
+	if (!isUuid(threadId)) {
+		return false;
+	}
+
+	const deleteMessagesResponse = await restRequest(
+		`/rest/v1/chat_messages?thread_id=eq.${threadId}&user_id=eq.${userId}`,
+		{
+			method: 'DELETE',
+			headers: {
+				Prefer: 'return=minimal'
+			}
+		}
+	);
+
+	if (!deleteMessagesResponse.ok) {
+		const details = await deleteMessagesResponse.text();
+		throw new Error(`Failed to delete chat messages (${deleteMessagesResponse.status}): ${details}`);
+	}
+
+	const deleteThreadResponse = await restRequest(
+		`/rest/v1/chat_threads?id=eq.${threadId}&user_id=eq.${userId}`,
+		{
+			method: 'DELETE',
+			headers: {
+				Prefer: 'return=representation'
+			}
+		}
+	);
+
+	if (!deleteThreadResponse.ok) {
+		const details = await deleteThreadResponse.text();
+		throw new Error(`Failed to delete chat (${deleteThreadResponse.status}): ${details}`);
+	}
+
+	const payload = (await deleteThreadResponse.json()) as unknown;
+	return Array.isArray(payload) && payload.length > 0;
+}

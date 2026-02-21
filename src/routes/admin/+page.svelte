@@ -128,6 +128,11 @@
 			return;
 		}
 
+		const currentUser = users.find((user) => user.id === userId);
+		if (currentUser?.role === 'dev') {
+			return;
+		}
+
 		savingRoleFor = { ...savingRoleFor, [userId]: true };
 		errorMessage = '';
 		try {
@@ -207,28 +212,35 @@
 								<td>{user.displayName ?? '-'}</td>
 								<td>{user.email ?? '-'}</td>
 								<td>
-									<select
-										class="select select-bordered select-sm w-28"
-										bind:value={selectedRoleByUserId[user.id]}
-									>
-										<option value="base">Base</option>
-										<option value="vip">VIP</option>
-										<option value="dev">Dev</option>
-									</select>
+									{#if user.role === 'dev'}
+										<span class="badge badge-outline badge-info">Dev (locked)</span>
+									{:else}
+										<select
+											class="select select-bordered select-sm w-28"
+											bind:value={selectedRoleByUserId[user.id]}
+										>
+											<option value="base">Base</option>
+											<option value="vip">VIP</option>
+										</select>
+									{/if}
 								</td>
 								<td>{formatDate(user.createdAt)}</td>
 								<td>{formatDate(user.lastSignInAt)}</td>
 								<td>
-									<button
-										type="button"
-										class="btn btn-primary btn-sm"
-										on:click={() => {
-											void saveRole(user.id);
-										}}
-										disabled={savingRoleFor[user.id] === true}
-									>
-										{savingRoleFor[user.id] === true ? 'Saving...' : 'Save'}
-									</button>
+									{#if user.role === 'dev'}
+										<span class="text-xs text-base-content/60">Locked</span>
+									{:else}
+										<button
+											type="button"
+											class="btn btn-primary btn-sm"
+											on:click={() => {
+												void saveRole(user.id);
+											}}
+											disabled={savingRoleFor[user.id] === true}
+										>
+											{savingRoleFor[user.id] === true ? 'Saving...' : 'Save'}
+										</button>
+									{/if}
 								</td>
 							</tr>
 						{/each}
